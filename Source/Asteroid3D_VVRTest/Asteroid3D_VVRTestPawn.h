@@ -21,6 +21,7 @@ class AAsteroid3D_VVRTestPawn : public APawn
 	/** Camera component that will be our viewpoint */
 	UPROPERTY(Category = Camera, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
 	class UCameraComponent* Camera;
+	
 public:
 	AAsteroid3D_VVRTestPawn();
 
