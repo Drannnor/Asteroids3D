@@ -3,14 +3,23 @@
 
 #include "A3D_PlayerController.h"
 
-AA3D_PlayerController::AA3D_PlayerController() {
+#include "A3D_Ship.h"
 
+AA3D_PlayerController::AA3D_PlayerController() {
+	// bAutoManageActiveCameraTarget = false;
 }
 
 void AA3D_PlayerController::SetupInputComponent() {
 	Super::SetupInputComponent();
-	
-	InputComponent->BindAxis("Roll", this, &AA3D_PlayerController::AddRollInput);
-	InputComponent->BindAxis("Pitch", this, &AA3D_PlayerController::AddPitchInput);
-	InputComponent->BindAxis("Yaw", this, &AA3D_PlayerController::AddYawInput);
+
+	// AA3D_Ship* character = Cast<AA3D_Ship>(GetPawn());
+	// if (character != NULL) {
+	// 	InputComponent->BindAxis("Roll", character, &AA3D_Ship::AddRollInput);
+	//
+	// } else {
+	// 	UE_LOG(LogTemp, Warning, TEXT("character no found"))
+	// }
+	//
+	// InputComponent->BindAxis("Pitch", this, &AA3D_PlayerController::AddPitchInput);
+	// InputComponent->BindAxis("Yaw", this, &AA3D_PlayerController::AddYawInput);
 }

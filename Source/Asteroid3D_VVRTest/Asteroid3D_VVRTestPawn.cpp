@@ -68,6 +68,8 @@ void AAsteroid3D_VVRTestPawn::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 }
 
+
+
 void AAsteroid3D_VVRTestPawn::NotifyHit(class UPrimitiveComponent* MyComp, class AActor* Other, class UPrimitiveComponent* OtherComp, bool bSelfMoved, FVector HitLocation, FVector HitNormal, FVector NormalImpulse, const FHitResult& Hit)
 {
 	Super::NotifyHit(MyComp, Other, OtherComp, bSelfMoved, HitLocation, HitNormal, NormalImpulse, Hit);
