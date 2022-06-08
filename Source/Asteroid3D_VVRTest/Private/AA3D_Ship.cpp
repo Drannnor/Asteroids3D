@@ -17,7 +17,7 @@ AA3D_Ship::AA3D_Ship() {
 
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComp"));
 	SpringArmComp->SetupAttachment(RootComponent);
-	SpringArmComp->ProbeSize = 500.0f;
+	SpringArmComp->ProbeSize = 1000.0f;
 	SpringArmComp->bUsePawnControlRotation = true;
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
@@ -42,7 +42,7 @@ AA3D_Ship::AA3D_Ship() {
 	RateOfFire = 400.0f;
 
 	BaseDamage = 20.0f;
-	LaserSpeed = 3000.0f;
+	LaserSpeed = 5000.0f;
 
 }
 
@@ -127,6 +127,7 @@ void AA3D_Ship::Fire() {
 
 	AA3D_Projectile* Laser = GetWorld()->SpawnActor<AA3D_Projectile>(ProjectileClass, MuzzleLocation, MuzzleRotation, ActorSpawnParams);
 	Laser->SetupProjectile(BaseDamage, DamageType,LaserSpeed );
+	Laser->SetOwner(this);
 }
 
 #pragma endregion Firing

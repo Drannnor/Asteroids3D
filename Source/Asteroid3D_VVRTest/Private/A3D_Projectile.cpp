@@ -24,7 +24,7 @@ AA3D_Projectile::AA3D_Projectile() {
 
 	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
 	MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-	MeshComponent->SetRelativeScale3D(FVector(0.2f, 1.0f, 0.2f));
+	MeshComponent->SetRelativeScale3D(FVector(2.0f, 0.2f, 0.2f));
 	MeshComponent->SetupAttachment(RootComponent);
 	// Use a ProjectileMovementComponent to govern this projectile's movement
 	ProjectileMovement = CreateDefaultSubobject<UProjectileMovementComponent>(TEXT("ProjectileComp"));
