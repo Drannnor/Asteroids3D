@@ -3,24 +3,30 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "A3D_HealthComponent.h"
 #include "MatineeCameraShake.h"
 #include "Camera/CameraComponent.h"
 #include "GameFramework/Character.h"
+#include "A3D_Projectile.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "A3D_Ship.generated.h"
 
+class AA3D_Projectile;
 UCLASS()
 class ASTEROID3D_VVRTEST_API AA3D_Ship : public APawn {
 	GENERATED_BODY()
-	/** StaticMesh component that will be the visuals for our flying pawn */
-	UPROPERTY(Category = Mesh, VisibleDefaultsOnly, BlueprintReadOnly, meta = (AllowPrivateAccess = "true"))
-	UStaticMeshComponent* MeshComponent;
+	
+	UPROPERTY(EditDefaultsOnly, Category = "Components")
+	USkeletalMeshComponent* MeshComponent;
 
-	UPROPERTY(VisibleAnywhere, Category="Components")
+	UPROPERTY(EditDefaultsOnly, Category="Components")
 	UCameraComponent* CameraComp;
 
-	UPROPERTY(VisibleAnywhere, Category="Components")
+	UPROPERTY(EditDefaultsOnly, Category="Components")
 	USpringArmComponent* SpringArmComp;
+
+	UPROPERTY(EditDefaultsOnly, Category="Components")
+	UA3D_HealthComponent* HealthComponent;
 
 	UPROPERTY(EditDefaultsOnly, Category= "FOV")
 	float DefaultFOV = 65.0f;
@@ -29,7 +35,6 @@ class ASTEROID3D_VVRTEST_API AA3D_Ship : public APawn {
 	float MaxFOV = 100.0f;
 
 protected:
-
 	//MOVEMENT
 	UPROPERTY(EditDefaultsOnly, Category="Flight")
 	float PitchRate;
@@ -54,26 +59,33 @@ protected:
 	/** Min forward speed */
 	UPROPERTY(EditAnywhere, Category="Flight")
 	float MinSpeed;
-	
+
 	/** Current forward speed */
 	float CurrentForwardSpeed;
 
 	//LASERS
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category= "LASERS")
-	UParticleSystem* MuzzleEffect;
-
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category= "LASERS")
 	FName MuzzleSocketName;
+
+	//RPM BULLETS per Minute
+	UPROPERTY(EditDefaultsOnly, Category= "LASERS")
+	float RateOfFire;
+
+	/** Projectile class to spawn */
+	UPROPERTY(EditDefaultsOnly, Category="LASERS")
+	TSubclassOf<AA3D_Projectile> ProjectileClass;
 
 	UPROPERTY(EditDefaultsOnly, Category= "LASERS")
 	USoundBase* FireSoundEffect;
 
 	UPROPERTY(EditDefaultsOnly, Category= "LASERS")
 	float BaseDamage;
-
-	//RPM BULLETS per Minute
-	UPROPERTY(EditDefaultsOnly, Category= "Weapon")
-	float RateOfFire;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="LASERS")
+	TSubclassOf<UDamageType> DamageType;
+	
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category="LASERS")
+	float LaserSpeed;
 
 	FTimerHandle TimerHandle_TimeBetweenShots;
 
@@ -82,11 +94,12 @@ protected:
 	//Derived from rate of fire
 	float TimeBetweenShots;
 
-
-	
+	UPROPERTY(BlueprintReadOnly, Category= "Player" )
+	bool bDead = false;
 
 public:
-	// Sets default values for this character's properties
+	
+	//MOVEMENT
 	AA3D_Ship();
 	UFUNCTION()
 	void AddPitchInput(float Value);
@@ -96,12 +109,19 @@ public:
 	void AddYawInput(float Value);
 	UFUNCTION()
 	void ThrustInput(float Value);
+	
+	//FIRING
 	UFUNCTION()
 	void StartFire();
 	UFUNCTION()
 	void StopFire();
 	UFUNCTION()
 	void Fire();
+
+	//HEALTH
+	UFUNCTION()
+	void OnHealthChanged(UA3D_HealthComponent* HealthComp, float Health, float HealthDelta,
+						 const UDamageType* Type, AController* InstigatedBy, AActor* DamageCauser);
 
 protected:
 	// Called when the game starts or when spawned

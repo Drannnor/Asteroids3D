@@ -1,16 +1,17 @@
 // Fill out your copyright notice in the Description page of Project Settings.
 
-
+#include "A3D_Projectile.h"
 #include "A3D_Ship.h"
 #include "Components/CapsuleComponent.h"
 
 #pragma region init
+
 // Sets default values
 AA3D_Ship::AA3D_Ship() {
 	// Set this character to call Tick() every frame.  You can turn this off to improve performance if you don't need it.
 	PrimaryActorTick.bCanEverTick = true;
 
-	MeshComponent = CreateDefaultSubobject<UStaticMeshComponent>(TEXT("MeshComponent"));
+	MeshComponent = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("MeshComponent"));
 	MeshComponent->SetSimulatePhysics(true);
 	RootComponent = MeshComponent;
 
@@ -23,6 +24,9 @@ AA3D_Ship::AA3D_Ship() {
 	CameraComp->bUsePawnControlRotation = true;
 	CameraComp->SetupAttachment(SpringArmComp);
 
+	HealthComponent = CreateDefaultSubobject<UA3D_HealthComponent>( TEXT( "HealthComponent" ) );
+	HealthComponent->OnHealthChanged.AddDynamic( this, &AA3D_Ship::OnHealthChanged );
+
 	PitchRate = 50.0f;
 	RollRate = 50.0f;
 	YawRate = 50.0f;
@@ -33,6 +37,13 @@ AA3D_Ship::AA3D_Ship() {
 
 	AngularDamping = 5.0f;
 
+	MuzzleSocketName = "Muzzle";
+
+	RateOfFire = 400.0f;
+
+	BaseDamage = 20.0f;
+	LaserSpeed = 3000.0f;
+
 }
 
 // Called when the game starts or when spawned
@@ -40,7 +51,7 @@ void AA3D_Ship::BeginPlay() {
 	Super::BeginPlay();
 	CameraComp->SetFieldOfView(DefaultFOV);
 	MeshComponent->SetAngularDamping(AngularDamping);
-
+	TimeBetweenShots = 60 / RateOfFire;
 }
 #pragma endregion init
 
@@ -57,21 +68,12 @@ void AA3D_Ship::AddPitchInput(float Value) {
 	// Target pitch speed is based in input
 	float TargetPitchSpeed = Value * PitchRate;
 
-	// // When steering, we decrease pitch slightly
-	// TargetPitchSpeed += (FMath::Abs(CurrentYawSpeed) * -0.2f);
-
-	// Smoothly interpolate to target pitch speed
-	// CurrentPitchSpeed = FMath::FInterpTo(CurrentPitchSpeed, TargetPitchSpeed, GetWorld()->GetDeltaSeconds(), 2.f);
-
 	MeshComponent->AddTorqueInDegrees(GetActorRightVector() * TargetPitchSpeed, NAME_None, true);
 }
 
 void AA3D_Ship::AddRollInput(float Value) {
 	// Target yaw speed is based on input
 	float TargetRollSpeed = Value * RollRate;
-
-	// Smoothly interpolate to target yaw speed
-	// CurrentRollSpeed = FMath::FInterpTo(CurrentRollSpeed, TargetRollSpeed, GetWorld()->GetDeltaSeconds(), 2.f);
 
 	MeshComponent->AddTorqueInDegrees(GetActorForwardVector() * TargetRollSpeed, NAME_None, true);
 }
@@ -80,8 +82,6 @@ void AA3D_Ship::AddYawInput(float Value) {
 	// Target yaw speed is based on input
 	float TargetYawSpeed = Value * YawRate;
 
-	// Smoothly interpolate to target yaw speed
-	// CurrentYawSpeed = FMath::FInterpTo(CurrentYawSpeed, TargetYawSpeed, GetWorld()->GetDeltaSeconds(), 2.f);
 	MeshComponent->AddTorqueInDegrees(GetActorUpVector() * TargetYawSpeed, NAME_None, true);
 }
 
@@ -100,19 +100,45 @@ void AA3D_Ship::ThrustInput(float Value) {
 
 #pragma region Firing
 void AA3D_Ship::StartFire() {
+
 	float FirstDelay = LastFireTime + TimeBetweenShots - GetWorld()->TimeSeconds;
-	GetWorldTimerManager().SetTimer( TimerHandle_TimeBetweenShots, this, &AA3D_Ship::Fire, TimeBetweenShots, true,
-									 FMath::Max( FirstDelay, 0.0f ) );
+	GetWorldTimerManager().SetTimer(TimerHandle_TimeBetweenShots, this, &AA3D_Ship::Fire, TimeBetweenShots, true,
+	                                FMath::Max(FirstDelay, 0.0f));
 }
 
 void AA3D_Ship::StopFire() {
+	GetWorldTimerManager().ClearTimer(TimerHandle_TimeBetweenShots);
+
 }
 
 void AA3D_Ship::Fire() {
-	// GetWorld()->SpawnActor()
+
+	if (!ProjectileClass) {
+		UE_LOG(LogTemp, Warning, TEXT("ProjectileClass not defined!"))
+		return;
+	}
+
+	const FVector MuzzleLocation = MeshComponent->GetSocketLocation(MuzzleSocketName);
+	const FRotator MuzzleRotation = MeshComponent->GetSocketRotation(MuzzleSocketName);
+	FActorSpawnParameters ActorSpawnParams;
+	ActorSpawnParams.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
+	ActorSpawnParams.Instigator = this;
+
+	AA3D_Projectile* Laser = GetWorld()->SpawnActor<AA3D_Projectile>(ProjectileClass, MuzzleLocation, MuzzleRotation, ActorSpawnParams);
+	Laser->SetupProjectile(BaseDamage, DamageType,LaserSpeed );
 }
 
 #pragma endregion Firing
+
+void AA3D_Ship::OnHealthChanged(UA3D_HealthComponent* HealthComp, float Health, float HealthDelta,
+	const UDamageType* Type, AController* InstigatedBy, AActor* DamageCauser) {
+	if( Health <= 0.0f && !bDead ) {
+		bDead = true;
+		StopFire();
+		//Handle Death
+	}
+}
 
 
 // Called to bind functionality to input
