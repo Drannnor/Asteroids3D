@@ -25,9 +25,6 @@ class ASTEROID3D_VVRTEST_API AA3D_Ship : public APawn {
 	UPROPERTY(EditDefaultsOnly, Category="Components")
 	USpringArmComponent* SpringArmComp;
 
-	UPROPERTY(EditDefaultsOnly, Category="Components")
-	UA3D_HealthComponent* HealthComponent;
-
 	UPROPERTY(EditDefaultsOnly, Category= "FOV")
 	float DefaultFOV = 65.0f;
 
@@ -48,20 +45,19 @@ protected:
 	UPROPERTY(EditDefaultsOnly, Category="Flight")
 	float AngularDamping;
 
-	/** How quickly forward speed changes */
-	UPROPERTY(EditAnywhere, Category="Flight")
-	float Acceleration;
-
 	/** Max forward speed */
-	UPROPERTY(EditAnywhere, Category="Flight")
+	UPROPERTY(EditDefaultsOnly, Category="Flight")
 	float MaxSpeed;
 
-	/** Min forward speed */
-	UPROPERTY(EditAnywhere, Category="Flight")
-	float MinSpeed;
+	UPROPERTY(EditDefaultsOnly, Category="Flight")
+	float ThrustForce;
+	
+	UPROPERTY(EditDefaultsOnly, Category="Flight")
+	float CameraTurnSmoothness = 1.0f;
+
 
 	/** Current forward speed */
-	float CurrentForwardSpeed;
+	bool bThrusterActive;
 
 	//LASERS
 	UPROPERTY(VisibleDefaultsOnly, BlueprintReadOnly, Category= "LASERS")
@@ -97,6 +93,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category= "Player" )
 	bool bDead = false;
 
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category="Components")
+	UA3D_HealthComponent* HealthComponent;
+
 public:
 	
 	//MOVEMENT
@@ -108,7 +107,10 @@ public:
 	UFUNCTION()
 	void AddYawInput(float Value);
 	UFUNCTION()
-	void ThrustInput(float Value);
+	void InitiateThrust();
+	UFUNCTION()
+	void StopThrust();
+
 	
 	//FIRING
 	UFUNCTION()

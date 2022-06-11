@@ -5,4 +5,7 @@
 
 IMPLEMENT_PRIMARY_GAME_MODULE(FDefaultGameModuleImpl, Asteroid3D_VVRTest, "Asteroid3D_VVRTest");
 
+
 DEFINE_LOG_CATEGORY(LogFlying)
+
+

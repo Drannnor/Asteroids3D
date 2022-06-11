@@ -11,7 +11,6 @@ AA3D_Projectile::AA3D_Projectile() {
 	CollisionComp = CreateDefaultSubobject<UCapsuleComponent>(TEXT("collider"));
 	CollisionComp->SetCapsuleSize(20.f, 25.f, false);
 	CollisionComp->SetCollisionProfileName("Projectile");
-	CollisionComp->OnComponentHit.AddDynamic(this, &AA3D_Projectile::OnHit);
 	CollisionComp->SetRelativeRotation(FRotator(0.0f, 0.0f, 90.0f));
 
 
@@ -39,8 +38,10 @@ AA3D_Projectile::AA3D_Projectile() {
 
 }
 
+
 void AA3D_Projectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UPrimitiveComponent* OtherComp,
                             FVector NormalImpulse, const FHitResult& Hit) {
+	
 	AActor* MyOwner = GetOwner();
 	if(!MyOwner) {
 		UE_LOG(LogTemp, Warning, TEXT("Projectile Owner not Defined!"))
@@ -52,13 +53,26 @@ void AA3D_Projectile::OnHit(UPrimitiveComponent* HitComp, AActor* OtherActor, UP
 	UGameplayStatics::ApplyPointDamage( OtherActor, Damage, HitFromDirection, Hit,
 	                                    MyOwner->GetInstigatorController(), MyOwner, DamageType);
 
-	//TODO destroy and spawn particle effects
+	DestroyProjectile();
 }
+
+
+void AA3D_Projectile::DestroyProjectile() {
+	//TODO spawn particle effect, explode asteroid
+	Destroy();
+}
+
+void AA3D_Projectile::BeginPlay() {
+	Super::BeginPlay();
+	CollisionComp->OnComponentHit.AddDynamic(this, &AA3D_Projectile::OnHit);
+
+}
+
 
 void AA3D_Projectile::SetupProjectile(float BaseDamage, const TSubclassOf<UDamageType>& type, float LaserSpeed) {
 	Damage = BaseDamage;
 	DamageType = type;
-	ProjectileMovement->InitialSpeed = LaserSpeed;
-	ProjectileMovement->MaxSpeed = LaserSpeed;
-	
+	// ProjectileMovement->InitialSpeed = LaserSpeed;
+	// ProjectileMovement->MaxSpeed = LaserSpeed;
+	MeshComponent->SetPhysicsLinearVelocity(GetActorForwardVector() * LaserSpeed);
 }

@@ -13,18 +13,22 @@ class ASTEROID3D_VVRTEST_API UA3D_HealthComponent : public UActorComponent {
 												  Health, float, HealthDelta, const class UDamageType*, DamageType,
 												  class AController*, InstigatedBy, AActor*, DamageCauser );
 
-
 public:
 	// Sets default values for this component's properties
 	UA3D_HealthComponent();
 
 protected:
 
+	FTimerHandle TimerHandle_Immunity;
+
+
 	UPROPERTY(BlueprintReadOnly, Category = "HealthComponent")
 	float Health;
 
-	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HealthComponent")
+	UPROPERTY(EditDefaultsOnly, BlueprintReadWrite, Category = "HealthComponent")
 	float MaxHealth = 100;
+	UPROPERTY(EditDefaultsOnly, BlueprintReadOnly, Category = "HealthComponent")
+	float ImmunityDelay = 1.0f;
 
 	bool bIsDead;
 	// Called when the game starts
@@ -34,13 +38,14 @@ protected:
 	void HandleTakeAnyDamage( AActor* DamagedActor, float Damage, const class UDamageType* DamageType,
 							  class AController* InstigatedBy, AActor* DamageCauser );
 
-
 public:
-
+	UFUNCTION(BlueprintCallable)
 	float GetHealth() const;
 
 	UFUNCTION(BlueprintCallable, Category="HealthComponents" )
 	void Heal( float HealAmount );
+	void SetMaxHealth(float max);
+	void SetImmunity();
 
 	UPROPERTY( BlueprintAssignable, Category = "Events" )
 	FOnHealthChangedSignature OnHealthChanged;

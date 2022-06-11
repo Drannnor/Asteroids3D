@@ -17,23 +17,29 @@ AA3D_Ship::AA3D_Ship() {
 
 	SpringArmComp = CreateDefaultSubobject<USpringArmComponent>(TEXT("SpringArmComp"));
 	SpringArmComp->SetupAttachment(RootComponent);
-	SpringArmComp->ProbeSize = 1000.0f;
+	SpringArmComp->TargetArmLength = 1000.0f;
 	SpringArmComp->bUsePawnControlRotation = true;
+	SpringArmComp->bInheritPitch = true;
+	SpringArmComp->bInheritRoll = true;
+	SpringArmComp->bInheritYaw = true;
+	SpringArmComp->bEnableCameraLag = true;
+	SpringArmComp->bEnableCameraRotationLag = true;
+	SpringArmComp->CameraLagSpeed = 5.0f;
+	SpringArmComp->CameraRotationLagSpeed = 5.0f;
+	SpringArmComp->CameraLagMaxDistance = 5.0f;
 
 	CameraComp = CreateDefaultSubobject<UCameraComponent>(TEXT("CameraComponent"));
-	CameraComp->bUsePawnControlRotation = true;
 	CameraComp->SetupAttachment(SpringArmComp);
 
-	HealthComponent = CreateDefaultSubobject<UA3D_HealthComponent>( TEXT( "HealthComponent" ) );
-	HealthComponent->OnHealthChanged.AddDynamic( this, &AA3D_Ship::OnHealthChanged );
+	HealthComponent = CreateDefaultSubobject<UA3D_HealthComponent>(TEXT("HealthComponent"));
 
 	PitchRate = 50.0f;
 	RollRate = 50.0f;
 	YawRate = 50.0f;
 
-	Acceleration = 500.f;
 	MaxSpeed = 4000.f;
-	CurrentForwardSpeed = 0.f;
+	ThrustForce = 2000.0f;
+	bThrusterActive = false;
 
 	AngularDamping = 5.0f;
 
@@ -43,12 +49,16 @@ AA3D_Ship::AA3D_Ship() {
 
 	BaseDamage = 20.0f;
 	LaserSpeed = 5000.0f;
+	
+	HealthComponent->OnHealthChanged.AddDynamic(this, &AA3D_Ship::OnHealthChanged);
 
 }
 
 // Called when the game starts or when spawned
 void AA3D_Ship::BeginPlay() {
 	Super::BeginPlay();
+
+
 	CameraComp->SetFieldOfView(DefaultFOV);
 	MeshComponent->SetAngularDamping(AngularDamping);
 	TimeBetweenShots = 60 / RateOfFire;
@@ -58,6 +68,26 @@ void AA3D_Ship::BeginPlay() {
 // Called every frame
 void AA3D_Ship::Tick(float DeltaTime) {
 	Super::Tick(DeltaTime);
+	if (bThrusterActive) {
+		FVector ThrustVector = GetActorForwardVector() * ThrustForce;
+		MeshComponent->AddImpulse(ThrustVector);
+
+		FVector CameraLook = CameraComp->GetForwardVector();
+
+		FQuat NewRotation = CameraLook.ToOrientationQuat();
+
+		FQuat Rotation = FQuat::Slerp(GetActorRotation().Quaternion(), NewRotation, DeltaTime);
+		SetActorRotation(Rotation, ETeleportType::TeleportPhysics);
+	}
+
+
+	FVector VelocityVector = MeshComponent->GetComponentVelocity();
+	auto Speed = VelocityVector.Size();
+	if (!bThrusterActive) {
+		CameraTurnSmoothness = 2.f;
+		Speed = FMath::FInterpTo(Speed, 0.0f, GetWorld()->GetDeltaSeconds(), CameraTurnSmoothness);
+	}
+	MeshComponent->SetPhysicsLinearVelocity(Speed * GetActorForwardVector());
 
 }
 
@@ -65,17 +95,19 @@ void AA3D_Ship::Tick(float DeltaTime) {
 void AA3D_Ship::AddPitchInput(float Value) {
 
 
-	// Target pitch speed is based in input
 	float TargetPitchSpeed = Value * PitchRate;
 
 	MeshComponent->AddTorqueInDegrees(GetActorRightVector() * TargetPitchSpeed, NAME_None, true);
 }
 
 void AA3D_Ship::AddRollInput(float Value) {
-	// Target yaw speed is based on input
 	float TargetRollSpeed = Value * RollRate;
 
-	MeshComponent->AddTorqueInDegrees(GetActorForwardVector() * TargetRollSpeed, NAME_None, true);
+	if (bThrusterActive) {
+		AddControllerRollInput(Value);
+	} else {
+		MeshComponent->AddTorqueInDegrees(GetActorForwardVector() * TargetRollSpeed, NAME_None, true);
+	}
 }
 
 void AA3D_Ship::AddYawInput(float Value) {
@@ -85,15 +117,13 @@ void AA3D_Ship::AddYawInput(float Value) {
 	MeshComponent->AddTorqueInDegrees(GetActorUpVector() * TargetYawSpeed, NAME_None, true);
 }
 
-void AA3D_Ship::ThrustInput(float Value) {
-	// Is there any input?
-	bool bHasInput = !FMath::IsNearlyEqual(Value, 0.f);
-	// If input is not held down, reduce speed
-	float CurrentAcc = bHasInput ? (Value * Acceleration) : (-0.5f * Acceleration);
-	// Calculate new speed
-	float NewForwardSpeed = CurrentForwardSpeed + (GetWorld()->GetDeltaSeconds() * CurrentAcc);
-	// Clamp between MinSpeed and MaxSpeed
-	CurrentForwardSpeed = FMath::Clamp(NewForwardSpeed, MinSpeed, MaxSpeed);
+void AA3D_Ship::InitiateThrust() {
+
+	bThrusterActive = true;
+}
+
+void AA3D_Ship::StopThrust() {
+	bThrusterActive = false;
 }
 
 #pragma endregion Movement
@@ -108,7 +138,6 @@ void AA3D_Ship::StartFire() {
 
 void AA3D_Ship::StopFire() {
 	GetWorldTimerManager().ClearTimer(TimerHandle_TimeBetweenShots);
-
 }
 
 void AA3D_Ship::Fire() {
@@ -120,24 +149,38 @@ void AA3D_Ship::Fire() {
 
 	const FVector MuzzleLocation = MeshComponent->GetSocketLocation(MuzzleSocketName);
 	const FRotator MuzzleRotation = MeshComponent->GetSocketRotation(MuzzleSocketName);
+
 	FActorSpawnParameters ActorSpawnParams;
 	ActorSpawnParams.SpawnCollisionHandlingOverride =
 		ESpawnActorCollisionHandlingMethod::AdjustIfPossibleButDontSpawnIfColliding;
 	ActorSpawnParams.Instigator = this;
 
-	AA3D_Projectile* Laser = GetWorld()->SpawnActor<AA3D_Projectile>(ProjectileClass, MuzzleLocation, MuzzleRotation, ActorSpawnParams);
-	Laser->SetupProjectile(BaseDamage, DamageType,LaserSpeed );
-	Laser->SetOwner(this);
+	AA3D_Projectile* Laser = GetWorld()->SpawnActor<AA3D_Projectile>(ProjectileClass, MuzzleLocation, MuzzleRotation,
+	                                                                 ActorSpawnParams);
+	if (Laser) {
+		auto CurrentSpeed = GetVelocity().Size() * 100;
+		Laser->SetupProjectile(BaseDamage, DamageType, CurrentSpeed + LaserSpeed);
+		Laser->SetOwner(this);
+	}
+
 }
 
 #pragma endregion Firing
 
 void AA3D_Ship::OnHealthChanged(UA3D_HealthComponent* HealthComp, float Health, float HealthDelta,
-	const UDamageType* Type, AController* InstigatedBy, AActor* DamageCauser) {
-	if( Health <= 0.0f && !bDead ) {
+                                const UDamageType* Type, AController* InstigatedBy, AActor* DamageCauser) {
+
+
+	HealthComp->SetImmunity();
+	if (Health <= 0.0f && !bDead) {
+		//Handle Death
 		bDead = true;
 		StopFire();
-		//Handle Death
+		MeshComponent->SetSimulatePhysics(false);
+		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		DetachFromControllerPendingDestroy();
+
+		SetLifeSpan(10.0f);
 	}
 }
 
@@ -149,11 +192,14 @@ void AA3D_Ship::SetupPlayerInputComponent(UInputComponent* PlayerInputComponent)
 	InputComponent->BindAxis("Roll", this, &AA3D_Ship::AddRollInput);
 	InputComponent->BindAxis("Pitch", this, &AA3D_Ship::AddPitchInput);
 	InputComponent->BindAxis("Yaw", this, &AA3D_Ship::AddYawInput);
-	InputComponent->BindAxis("Thrust", this, &AA3D_Ship::ThrustInput);
 	InputComponent->BindAxis("LookUp", this, &APawn::AddControllerPitchInput);
 	InputComponent->BindAxis("Turn", this, &APawn::AddControllerYawInput);
 
 	InputComponent->BindAction("Fire", IE_Pressed, this, &AA3D_Ship::StartFire);
 	InputComponent->BindAction("Fire", IE_Released, this, &AA3D_Ship::StopFire);
+
+	InputComponent->BindAction("Thrust", IE_Pressed, this, &AA3D_Ship::InitiateThrust);
+	InputComponent->BindAction("Thrust", IE_Released, this, &AA3D_Ship::StopThrust);
+
 
 }
